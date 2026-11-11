@@ -67,9 +67,13 @@ Prices are indicative online listings (checked Oct 2026) and will vary.
 
 The project document is in `docs/`.
 
-## Team: Silicon Sentinels (CBIT Hyderabad, B.Tech ECE)
+## Team: Silicon Sentinels (CBIT Hyderabad, B.E. ECE)
 - Bankiti Srishanth Reddy (Team Lead)
 - Vedanidhi Kothur
 - Sanneella Ashmitha
 - Lavudya Chandrapathi
 - Vasam Sai Varshini
+
+## License
+
+MIT, see [LICENSE](LICENSE). Copyright (c) 2026 Bankiti Srishanth Reddy and contributors.
