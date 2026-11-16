@@ -8,8 +8,8 @@ SentinelNode is a retrofit ESP32 node that watches a power/control board's rail 
 
 ## Architecture
 ```
- Sensors ──► ESP32 firmware ──(Wi-Fi, JSON/HTTP)──► FastAPI backend ──► Dashboard / alerts
- INA219 (V,I)      on-node threshold rules               IsolationForest + rules
+ Sensors ──► ESP32 firmware ──(Wi-Fi, JSON/HTTP or MQTT)──► FastAPI backend / ThingsBoard ──► Dashboard / alerts
+ INA219 (V,I)      threshold rules + int8 autoencoder     history, alerts API
  MLX90614 (hot)    LED / buzzer local alarm              health score 0–100
  DS18B20 (amb)                                           /api/nodes, /api/alerts
  MPU6050 (vib)
@@ -21,19 +21,30 @@ SentinelNode is a retrofit ESP32 node that watches a power/control board's rail 
 |---|---|
 | `firmware/sentinelnode/sentinelnode.ino` | ESP32 Arduino firmware. Reads the sensors, applies the threshold rules, drives the LED and buzzer, and POSTs JSON |
 | `sim/simulator.py` | Synthetic sensor simulator with healthy, capacitor, overload and loose_mount modes |
-| `sentinelnode/model.py` | IsolationForest training (on simulated healthy data) |
+| `sentinelnode/autoencoder.py` | Tiny 6-8-3-8-6 autoencoder, int8 weight export to `firmware/sentinelnode/ae_model.h` |
+| `firmware/sentinelnode/ae_infer.h` | Plain-C inference used on the ESP32 (tested against Python with gcc) |
+| `scripts/eval_aging.py` | Early-warning evaluation on simulated 72 h capacitor-ageing runs → `docs/eval_aging.json` |
+| `sentinelnode/model.py` | IsolationForest baseline, kept for comparison only (it missed most out-of-range faults in our simulated tests) |
 | `sentinelnode/rules.py` | Threshold rules: hot-spot, temperature rise, vibration, ripple |
-| `sentinelnode/edge_infer.py` | Edge inference that combines the rules and the ML into a health score and status |
+| `sentinelnode/edge_infer.py` | Rules + autoencoder → health score 0–100 and OK / Watch / Replace soon, with debouncing |
 | `sentinelnode/api.py` | FastAPI dashboard backend |
 | `tests/` | pytest suite |
 
 Pin map: I²C on GPIO21/22, 1-Wire on GPIO4, ripple on ADC1 GPIO34, LED on GPIO25, buzzer on GPIO26.
+
+## Simulated result (not a measurement)
+On 5 simulated 72 h capacitor-ageing runs the autoencoder raised a debounced **Watch** on average **~6.4 h before**
+the first fixed-limit rule tripped, with 0 false Watch events on 5 healthy runs (`docs/eval_aging.json`).
+
+More: [features and limitations](docs/FEATURES_AND_LIMITATIONS.md) · [setup and wiring](docs/SETUP.md) · [AI disclosure](docs/AI_DISCLOSURE.md)
 
 ## Run
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
+python -m sentinelnode.autoencoder          # retrain, regenerate ae_model.h
+python -m scripts.eval_aging                # simulated early-warning eval
 uvicorn sentinelnode.api:app --reload      # backend on :8000
 python -m sim.simulator                    # stream simulated readings
 ```

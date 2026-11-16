@@ -2,12 +2,12 @@
 from collections import defaultdict, deque
 from fastapi import FastAPI
 from pydantic import BaseModel
-from .model import train
+from .autoencoder import train
 from .edge_infer import infer
 from sim.simulator import dataset
 
 app = FastAPI(title="SentinelNode")
-MODEL = train(dataset(2000))
+MODEL = train(dataset(3000))  # int8 autoencoder on SIMULATED healthy data
 HISTORY = defaultdict(lambda: deque(maxlen=500))
 
 class Reading(BaseModel):
